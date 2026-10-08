@@ -331,7 +331,9 @@ def process_file_updates(db_path, log_path, ledger_path):
                             read_pos = pos + original_len
                             write_pos = pos + new_len
                             while remainder_len > 0:
-                                bytes_to_read = min(chunk_size, remainder_len)
+                                bytes_to_read = chunk_size
+                                if remainder_len < chunk_size:
+                                    bytes_to_read = remainder_len
                                 f.seek(read_pos)
                                 chunk = f.read(bytes_to_read)
                                 f.seek(write_pos)
