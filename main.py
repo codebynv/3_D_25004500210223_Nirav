@@ -313,7 +313,9 @@ def process_file_updates(db_path, log_path, ledger_path):
                         if diff > 0:
                             read_pos = eof_pos
                             while remainder_len > 0:
-                                bytes_to_read = min(chunk_size, remainder_len)
+                                bytes_to_read = chunk_size
+                                if remainder_len < chunk_size:
+                                    bytes_to_read = remainder_len
                                 read_pos -= bytes_to_read
                                 f.seek(read_pos)
                                 chunk = f.read(bytes_to_read)
@@ -372,31 +374,38 @@ class Account:
     total_accounts = 0
     
     def __init__(self, account_id, balance):
+        """Initializes an account with an ID and validated balance."""
         self._account_id = account_id
         self.__balance = self._validate_balance(balance)
         Account.total_accounts += 1
         
     def _validate_balance(self, balance):
+        """Validates and normalizes an account balance."""
         if type(balance) not in (int, float):
             raise BaseSystemError("Balance must be a numeric type.")
         return float(balance)
         
     def get_balance(self):
+        """Returns the current private account balance."""
         return self.__balance
         
     def set_balance(self, value):
+        """Validates and updates the private account balance."""
         self.__balance = self._validate_balance(value)
         
     def process_settlement(self, amount):
+        """Defines the settlement interface implemented by account subclasses."""
         raise NotImplementedError("Subclasses must implement process_settlement")
 
 class SavingsAccount(Account):
     """Savings account that maintains a minimum balance of 1000."""
 
     def __init__(self, account_id, balance):
+        """Initializes a savings account."""
         super().__init__(account_id, balance)
         
     def process_settlement(self, amount):
+        """Applies a settlement while preserving the minimum savings balance."""
         new_bal = self.get_balance() + amount
         if new_bal < 1000:
             raise InsufficientBalanceError("Savings balance cannot fall below 1000.")
@@ -406,10 +415,12 @@ class CurrentAccount(Account):
     """Current account that supports a configured private overdraft limit."""
 
     def __init__(self, account_id, balance, overdraft_limit):
+        """Initializes a current account with its overdraft limit."""
         super().__init__(account_id, balance)
         self.__overdraft_limit = overdraft_limit
         
     def process_settlement(self, amount):
+        """Applies a settlement within the configured overdraft limit."""
         new_bal = self.get_balance() + amount
         if new_bal < -self.__overdraft_limit:
             raise InsufficientBalanceError("Overdraft limit exceeded.")
@@ -419,10 +430,12 @@ class CreditAccount(Account):
     """Credit account that applies a 2.5 percent settlement surcharge."""
 
     def __init__(self, account_id, balance, credit_limit):
+        """Initializes a credit account with its credit limit."""
         super().__init__(account_id, balance)
         self.__credit_limit = credit_limit
         
     def process_settlement(self, amount):
+        """Applies a settlement and the required 2.5 percent surcharge."""
         surcharge = amount * 0.025
         total_deduction = amount + surcharge
         new_bal = self.get_balance() - total_deduction
