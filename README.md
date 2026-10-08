@@ -20,7 +20,7 @@ PTMAE combines a small banking engine with audit and file-processing exercises. 
 
 PTMAE covers five main areas:
 
-- **Interactive command processing** for interest calculation and transaction trajectory checks.
+- **Interactive command processing** for compound interest, penalty calculation, and transaction trajectory checks.
 - **Manual log parsing** that handles quoted fields, delimiters inside quotes, escaped quotes, empty fields, and trailing fields.
 - **Data processing** using comprehensions, in-place list operations, set operations, sorting, and duplicate removal.
 - **Transactional file updates** on `accounts.db` using `r+`, `tell()`, `seek()`, chunked shifting, and `truncate()`.
@@ -96,6 +96,8 @@ Once the interactive prompt appears:
 PTMAE> interest 10000 5 2
 ```
 
+The demonstration also includes the required arithmetic-only penalty-fee calculation.
+
 Format:
 
 ```text
@@ -130,7 +132,7 @@ The first part of the program demonstrates:
 
 - nested `while`-based command processing
 - manual command parsing
-- compound interest calculation
+- compound interest and penalty-fee calculation
 - trajectory-based balance checking
 - short-circuit `or` logic
 - early termination of transaction processing
