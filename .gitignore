@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+test_accounts.db
+test_accounts_shrink.db
+corrupted.log
+ledger.txt
