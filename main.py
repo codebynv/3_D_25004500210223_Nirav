@@ -36,11 +36,17 @@ class InsufficientBalanceError(BaseSystemError):
 
 def calculate_compound_interest(principal, rate, time):
     """
-    Computes compound interest using only basic operators.
+    Computes compound interest using only basic arithmetic operators.
     Formula: A = P(1 + r/100)^t, Interest = A - P
     """
     amount = principal * ((1 + rate / 100) ** time)
     return amount - principal
+
+def calculate_penalty_fee(amount, rate):
+    """
+    Computes a penalty fee using arithmetic operators only.
+    """
+    return amount * rate / 100
 
 def trajectory_guard(transactions, initial_balance, threshold, stop_flag):
     """
@@ -172,8 +178,8 @@ def build_lambda_filters():
     No global variables are used.
     """
     filters = []
-    for i in range(3):
-        filters.append(lambda record, k=i: len(record) > k and record[k] == 'VALID')
+    for k in range(3):
+        filters.append(lambda record, k=k: len(record) > k and record[k] == 'VALID')
     return filters
 
 
@@ -249,13 +255,16 @@ def process_file_updates(db_path, log_path, ledger_path):
     
     try:
         with open(db_path, 'r+', newline='', encoding='utf-8') as f:
+            line_number = 0
+
             while True:
                 pos = f.tell()
                 line = f.readline()
-                
+
                 if not line:
                     break
-                    
+
+                line_number += 1
                 original_len = len(line)
                 clean_line = line.strip('\n')
                 
@@ -338,12 +347,12 @@ def process_file_updates(db_path, log_path, ledger_path):
                 except CorruptedRecordError as e:
                     rejected += 1
                     with open(log_path, 'a') as log_f:
-                        log_f.write(f"Line {processed + rejected}: {str(e)} -> {clean_line}\n")
+                        log_f.write(f"Line {line_number}: {str(e)} -> {clean_line}\n")
                     f.seek(pos + original_len)
                 except Exception as e:
                     rejected += 1
                     with open(log_path, 'a') as log_f:
-                        log_f.write(f"Line {processed + rejected}: System Error -> {clean_line}\n")
+                        log_f.write(f"Line {line_number}: System Error -> {clean_line}\n")
                     f.seek(pos + original_len)
                 else:
                     processed += 1
@@ -358,6 +367,8 @@ def process_file_updates(db_path, log_path, ledger_path):
 # =====================================================================
 
 class Account:
+    """Base account class providing common account state and validation."""
+
     total_accounts = 0
     
     def __init__(self, account_id, balance):
@@ -380,6 +391,8 @@ class Account:
         raise NotImplementedError("Subclasses must implement process_settlement")
 
 class SavingsAccount(Account):
+    """Savings account that maintains a minimum balance of 1000."""
+
     def __init__(self, account_id, balance):
         super().__init__(account_id, balance)
         
@@ -390,6 +403,8 @@ class SavingsAccount(Account):
         self.set_balance(new_bal)
 
 class CurrentAccount(Account):
+    """Current account that supports a configured private overdraft limit."""
+
     def __init__(self, account_id, balance, overdraft_limit):
         super().__init__(account_id, balance)
         self.__overdraft_limit = overdraft_limit
@@ -401,6 +416,8 @@ class CurrentAccount(Account):
         self.set_balance(new_bal)
 
 class CreditAccount(Account):
+    """Credit account that applies a 2.5 percent settlement surcharge."""
+
     def __init__(self, account_id, balance, credit_limit):
         super().__init__(account_id, balance)
         self.__credit_limit = credit_limit
@@ -438,21 +455,28 @@ def execute_batch_settlement(account_list, transaction_amount):
 # Demonstration Block
 # =====================================================================
 def run_demonstration():
+    """Runs demonstrations for all PTMAE functional requirements."""
     print("=== PTMAE Demonstration Start ===")
-    
-    print("\n1. Exceptions check:")
+
+    print("\n1. Interest and Penalty:")
+    interest = calculate_compound_interest(10000, 5, 2)
+    penalty = calculate_penalty_fee(10000, 2)
+    print(f" Compound Interest: {interest:.2f}")
+    print(f" Penalty Fee: {penalty:.2f}")
+
+    print("\n2. Exceptions check:")
     try:
         raise CorruptedRecordError("test")
     except BaseSystemError:
         print("Caught CorruptedRecordError as BaseSystemError successfully.")
         
-    print("\n2. Parse raw log line (FR-2.1):")
+    print("\n3. Parse raw log line (FR-2.1):")
     line = 'field1,"field2,with,comma","field3_""escaped""",field4,'
     tokens = parse_raw_log_line(line)
     for i, t in enumerate(tokens):
         print(f" Token {i}: {t}")
         
-    print("\n3. Closure and late binding (FR-2.2, FR-2.3):")
+    print("\n4. Closure and late binding (FR-2.2, FR-2.3):")
     filt = create_audit_filter(500)
     print(f" Filt(600): {filt(600)} | Filt(400): {filt(400)}")
     
@@ -461,7 +485,7 @@ def run_demonstration():
     print(f" Lambda 0 (expect True): {lambdas[0](rec)}")
     print(f" Lambda 1 (expect False): {lambdas[1](rec)}")
     
-    print("\n4. Data Inversion (FR-3.1):")
+    print("\n5. Data Inversion (FR-3.1):")
     raw_db = {
         "BRANCH_01": [("Acc101", {"DEPOSIT", "UPI"}), ("Acc102", {"LOAN", "UPI"})],
         "BRANCH_02": [("Acc101", {"SAVINGS", "UPI"}), ("Acc103", {"CARD", "DEPOSIT"})]
@@ -470,7 +494,7 @@ def run_demonstration():
     for tag, val in inv.items():
         print(f" {tag}: {val}")
         
-    print("\n5. In-place Queue Optimisation (FR-3.2):")
+    print("\n6. In-place Queue Optimisation (FR-3.2):")
     q = [(1,2), {1,2,3,4}, [1,3,2], "dup", "dup", 10, 10]
     orig_id = id(q)
     clean_transaction_queue(q)
@@ -478,10 +502,10 @@ def run_demonstration():
     print(f" Cleaned Queue: {q}")
     print(f" ID unchanged? {orig_id == new_id}")
     
-    print("\n6. File update (FR-4):")
+    print("\n7. File update (FR-4):")
     process_file_updates("accounts.db", "corrupted.log", "ledger.txt")
     
-    print("\n7. OOP Polymorphism and Name Mangling (FR-5):")
+    print("\n8. OOP Polymorphism and Name Mangling (FR-5):")
     s = SavingsAccount("S1", 1500)
     c = CurrentAccount("C1", 500, 2000)
     cr = CreditAccount("CR1", 0, 1000)
@@ -495,7 +519,20 @@ def run_demonstration():
     execute_batch_settlement([s, c], -600) 
     execute_batch_settlement([cr], 500)
     
-    print("\n8. Interactive Loop (FR-1.1):")
+    print("\n9. Trajectory Guard (FR-1.3):")
+    threshold_txs = [{'amount': -600}, {'amount': -100}]
+    threshold_balance = trajectory_guard(threshold_txs, 1000, 500, 'STOP')
+    print(f" Threshold halt balance: {threshold_balance}")
+
+    flag_txs = [
+        {'amount': 100},
+        {'amount': 100, 'flag': 'STOP'},
+        {'amount': -1000}
+    ]
+    flag_balance = trajectory_guard(flag_txs, 1000, 500, 'STOP')
+    print(f" Stop-flag halt balance: {flag_balance}")
+
+    print("\n10. Interactive Loop (FR-1.1):")
     run_interactive_loop()
     
     print("=== PTMAE Demonstration End ===")
