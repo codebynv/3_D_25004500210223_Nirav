@@ -71,7 +71,7 @@ def run_interactive_loop():
     Interactive command processing loop built with nested while loops.
     """
     print("\n--- PTMAE Interactive Command Loop ---")
-    print("Commands: 'interest <p> <r> <t>', 'guard', 'exit'")
+    print("Commands: 'interest <p> <r> <t>', 'penalty <amount> <rate>', 'guard', 'exit'")
     
     while True:
         try:
@@ -111,12 +111,20 @@ def run_interactive_loop():
                     print(f"Computed Interest: {val}")
                 else:
                     print("Usage: interest <principal> <rate> <time>")
+            elif cmd == "penalty":
+                if len(parts) == 3:
+                    amount = float(parts[1])
+                    rate = float(parts[2])
+                    fee = calculate_penalty_fee(amount, rate)
+                    print(f"Penalty Fee: {fee}")
+                else:
+                    print("Usage: penalty <amount> <rate>")
             elif cmd == "guard":
                 txs = [{'amount': -100}, {'amount': -200, 'flag': 'STOP'}, {'amount': -500}]
                 final_bal = trajectory_guard(txs, 1000, 500, 'STOP')
                 print(f"Guard halted at balance: {final_bal}")
             else:
-                print("Invalid command. Try 'interest', 'guard', or 'exit'.")
+                print("Invalid command. Try 'interest', 'penalty', 'guard', or 'exit'.")
                 
         except BaseException as e:
             if isinstance(e, KeyboardInterrupt):
@@ -143,7 +151,7 @@ def parse_raw_log_line(line, delimiter=",", quote_char='"'):
         char = line[i]
         
         if char == quote_char:
-            if in_quotes and i + 1 < length and line[i+1] == quote_char:
+            if in_quotes and i + 1 < length and line[i+1:i+2] == quote_char:
                 current_token += quote_char
                 i += 1
             else:
@@ -166,6 +174,7 @@ def create_audit_filter(threshold):
     audited_count = 0
     
     def filter_func(amount):
+        """Counts one audited record and checks it against the threshold."""
         nonlocal audited_count
         audited_count += 1
         return amount > threshold
@@ -250,9 +259,18 @@ def process_file_updates(db_path, log_path, ledger_path):
     processed = 0
     rejected = 0
     
-    with open(log_path, 'w', encoding='utf-8') as f: pass
-    with open(ledger_path, 'w', encoding='utf-8') as f: pass
-    
+    # The submission contains only main.py and documentation.md.
+    # Create the starter database on first run; subsequent updates use r+ below.
+    try:
+        with open(db_path, 'r+', newline='', encoding='utf-8'):
+            pass
+    except FileNotFoundError:
+        with open(db_path, 'w', encoding='utf-8', newline='') as seed_file:
+            seed_file.write('Acc101, SAVINGS, 999.00\n')
+            seed_file.write('Acc102, CURRENT, 1100.00\n')
+            seed_file.write('Acc103, CREDIT, 110.00\n')
+            seed_file.write('BROKEN, RECORD\n')
+
     try:
         with open(db_path, 'r+', newline='', encoding='utf-8') as f:
             line_number = 0
@@ -475,21 +493,31 @@ def run_demonstration():
 
     print("\n1. Interest and Penalty:")
     interest = calculate_compound_interest(10000, 5, 2)
+    second_interest = calculate_compound_interest(2000, 10, 1)
     penalty = calculate_penalty_fee(10000, 2)
-    print(f" Compound Interest: {interest:.2f}")
-    print(f" Penalty Fee: {penalty:.2f}")
+    print(f" Compound Interest (10000 at 5% for 2 years): {interest:.2f}")
+    print(f" Compound Interest (2000 at 10% for 1 year): {second_interest:.2f}")
+    print(f" Penalty Fee (10000 at 2%): {penalty:.2f}")
 
     print("\n2. Exceptions check:")
-    try:
-        raise CorruptedRecordError("test")
-    except BaseSystemError:
-        print("Caught CorruptedRecordError as BaseSystemError successfully.")
+    exception_types = (CorruptedRecordError, OutOfBoundsError, InsufficientBalanceError)
+    for exception_type in exception_types:
+        print(f" {exception_type.__name__} subclasses BaseSystemError? {issubclass(exception_type, BaseSystemError)}")
+        try:
+            raise exception_type("test")
+        except BaseSystemError as error:
+            print(f" Caught {type(error).__name__} through BaseSystemError.")
         
     print("\n3. Parse raw log line (FR-2.1):")
-    line = 'field1,"field2,with,comma","field3_""escaped""",field4,'
-    tokens = parse_raw_log_line(line)
-    for i, t in enumerate(tokens):
-        print(f" Token {i}: {t}")
+    parser_examples = [
+        'field1,"field2,with,comma",field3',
+        'field1,"field2_""escaped""",field3',
+        'field1,field2,',
+        'field1,,field3'
+    ]
+    for example_number, line in enumerate(parser_examples, 1):
+        tokens = parse_raw_log_line(line)
+        print(f" Parser example {example_number}: {tokens}")
         
     print("\n4. Closure and late binding (FR-2.2, FR-2.3):")
     filt = create_audit_filter(500)
@@ -499,6 +527,7 @@ def run_demonstration():
     rec = ['VALID', 'INVALID', 'VALID']
     print(f" Lambda 0 (expect True): {lambdas[0](rec)}")
     print(f" Lambda 1 (expect False): {lambdas[1](rec)}")
+    print(f" Lambda 2 (expect True): {lambdas[2](rec)}")
     
     print("\n5. Data Inversion (FR-3.1):")
     raw_db = {
@@ -530,9 +559,17 @@ def run_demonstration():
     except AttributeError:
         print(" Attribute __balance is successfully hidden.")
     print(f" Mangled access: {s._Account__balance}")
+    print(f" Total accounts created: {Account.total_accounts}")
+    try:
+        s.set_balance("invalid")
+    except BaseSystemError as error:
+        print(f" Invalid balance rejected: {error}")
     
-    execute_batch_settlement([s, c], -600) 
+    execute_batch_settlement([s, c], -600)
     execute_batch_settlement([cr], 500)
+    print(" Additional limit-rejection checks:")
+    execute_batch_settlement([CurrentAccount("C2", 50, 100)], -200)
+    execute_batch_settlement([CreditAccount("CR2", 0, 500)], 500)
     
     print("\n9. Trajectory Guard (FR-1.3):")
     threshold_txs = [{'amount': -600}, {'amount': -100}]
