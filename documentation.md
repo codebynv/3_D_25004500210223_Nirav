@@ -81,7 +81,7 @@ The program is contained in one Python source file. The demonstration exercises 
 
 ## 4. Units 1–5 Compliance Checklist
 
-- [x] **Unit 1 — State control and trajectory guards:** The command interface uses nested `while` loops and manually scans command characters rather than using `str.split()`. Compound interest is calculated iteratively using arithmetic operations. The penalty uses an arithmetic percentage calculation. The trajectory guard uses short-circuit `or`, demonstrates threshold-based stopping, and stops before applying a transaction marked with the stop flag.
+- [x] **Unit 1 — State control and trajectory guards:** The command interface uses nested `while` loops and manually scans command characters rather than using `str.split()`. Compound interest is calculated iteratively using arithmetic operations. Penalty fees accumulate a percentage amount in a loop; the number of periods defaults to one and may be supplied as a third value. The trajectory guard uses short-circuit `or`, demonstrates threshold-based stopping, and stops before applying a transaction marked with the stop flag.
 - [x] **Unit 2 — Parsing and closures:** `parse_raw_log_line` scans by index, uses slicing to check for escaped quote pairs, and handles quoted delimiters, escaped quotes, empty fields, and trailing delimiters. The closure uses `nonlocal`, and each lambda binds `k=k`.
 - [x] **Unit 3 — Data processing:** `invert_data` builds the reverse index through a nested-comprehension pipeline, with sorted unique account/branch tuples. `clean_transaction_queue` mutates the original list object, converts tuples to lists, sorts lists descending, removes even integer values from set elements by set difference, and removes duplicate primitive values by scanning and deleting by index.
 - [x] **Unit 4 — File handling:** `process_file_updates` uses `r+`, `tell()`, `seek()`, chunked shifting, and `truncate()` when record lengths change. If the database is absent, a starter file is created on first run; subsequent record updates use `r+`. Rejected records are appended to `corrupted.log` with their input line numbers, successful updates are recorded in `ledger.txt`, and processed/rejected counts print in `finally`.
@@ -101,13 +101,13 @@ The demonstrations run first. The interactive command loop then accepts:
 
 ```text
 interest <principal> <rate> <years>
-penalty <amount> <rate>
+penalty <amount> <rate> [periods]
 guard
 exit
 ```
 
-For example, `interest 10000 5 2` prints `Computed Interest: 1025.00`.
+For example, `interest 10000 5 2` prints `Computed Interest: 1025.00`. `penalty 10000 2` computes a one-period fee of `200.00`; `penalty 5000 2 3` computes `300.00` over three periods.
 
-If the process is launched in an output-only runner that does not provide standard input, it now detects `EOFError`, prints a terminal-run hint, and exits instead of looping indefinitely. To enter commands in VS Code, use **Terminal → New Terminal** and run `python main.py` there (rather than an output-only “Run Code” panel).
+If the process is launched in an output-only runner that does not provide standard input, it detects `EOFError`, prints a terminal-run hint, and exits instead of looping indefinitely. To enter commands in VS Code, use **Terminal → New Terminal** and run `python main.py` there (rather than an output-only “Run Code” panel).
 
-The demonstration also covers two compound-interest examples, penalty calculation, parser edge cases, all custom exception subclasses, lambda positions, in-place queue identity, both trajectory-stop conditions, name mangling, balance validation, file processing, and batch settlement rejections.
+The demonstration covers two compound-interest examples, two penalty examples, parser edge cases, all custom exception subclasses, lambda positions, in-place queue identity, both trajectory-stop conditions, name mangling, balance validation, file processing, and batch settlement rejections.
