@@ -10,7 +10,7 @@ import datetime
 import random
 
 # =====================================================================
-# Module 4: Custom Exception Hierarchy (Unit 4)
+# Shared Custom Exception Hierarchy (Used by Units 4 and 5)
 # =====================================================================
 
 class BaseSystemError(Exception):
@@ -36,10 +36,14 @@ class InsufficientBalanceError(BaseSystemError):
 
 def calculate_compound_interest(principal, rate, time):
     """
-    Computes compound interest using only basic arithmetic operators.
-    Formula: A = P(1 + r/100)^t, Interest = A - P
+    Computes annual compound interest through an arithmetic loop.
+    Returns the interest earned, excluding the original principal.
     """
-    amount = principal * ((1 + rate / 100) ** time)
+    amount = principal
+    year = 0
+    while year < time:
+        amount = amount + amount * rate / 100
+        year += 1
     return amount - principal
 
 def calculate_penalty_fee(amount, rate):
@@ -50,87 +54,117 @@ def calculate_penalty_fee(amount, rate):
 
 def trajectory_guard(transactions, initial_balance, threshold, stop_flag):
     """
-    Iterates through a sequence of transactions, applying them to the balance.
-    Halts early using short-circuiting if balance falls below threshold or stop_flag is hit.
+    Applies transactions until the safety threshold or stop flag is reached.
+    A transaction marked with the stop flag is not applied to the balance.
     """
     balance = initial_balance
     for tx in transactions:
-        # Avoid using .get() to stay true to strict dict parsing, but .get is allowed built-in.
-        amount = tx.get('amount', 0)
         flag = tx.get('flag', '')
-        
+        if flag == stop_flag or balance < threshold:
+            break
+
+        amount = tx.get('amount', 0)
         balance += amount
-        
+
         if balance < threshold or flag == stop_flag:
             break
-            
+
     return balance
 
 def run_interactive_loop():
     """
-    Interactive command processing loop built with nested while loops.
+    Runs the nested command loop and handles unavailable terminal input cleanly.
+    Commands are parsed manually without str.split().
     """
     print("\n--- PTMAE Interactive Command Loop ---")
-    print("Commands: 'interest <p> <r> <t>', 'penalty <amount> <rate>', 'guard', 'exit'")
-    
+    print("Commands: 'interest <principal> <rate> <years>', "
+          "'penalty <amount> <rate>', 'guard', 'exit'")
+
     while True:
         try:
             command_line = input("PTMAE> ")
-            
-            if command_line == "exit":
-                print("Exiting interactive loop.")
-                break
-                
-            parts = []
-            current_word = ""
-            i = 0
-            cmd_len = len(command_line)
-            while i < cmd_len:
-                char = command_line[i]
-                if char == " ":
-                    if current_word:
-                        parts.append(current_word)
-                        current_word = ""
-                else:
-                    current_word += char
-                i += 1
-            if current_word:
-                parts.append(current_word)
-                
-            if not parts:
-                continue
-                
-            cmd = parts[0]
-            
-            if cmd == "interest":
-                if len(parts) == 4:
-                    p = float(parts[1])
-                    r = float(parts[2])
-                    t = int(parts[3])
-                    val = calculate_compound_interest(p, r, t)
-                    print(f"Computed Interest: {val}")
-                else:
-                    print("Usage: interest <principal> <rate> <time>")
-            elif cmd == "penalty":
-                if len(parts) == 3:
-                    amount = float(parts[1])
-                    rate = float(parts[2])
-                    fee = calculate_penalty_fee(amount, rate)
-                    print(f"Penalty Fee: {fee}")
-                else:
+        except EOFError:
+            print("\nNo interactive input is available in this run window.")
+            print("Open a terminal and run: python main.py")
+            break
+        except KeyboardInterrupt:
+            print("\nInput interrupted. Type 'exit' at the prompt to finish.")
+            continue
+
+        parts = []
+        current_word = ""
+        i = 0
+        command_length = len(command_line)
+
+        while i < command_length:
+            char = command_line[i]
+            if char == " " or char == "\t":
+                if current_word:
+                    parts.append(current_word)
+                    current_word = ""
+            else:
+                current_word += char
+            i += 1
+
+        if current_word:
+            parts.append(current_word)
+
+        if not parts:
+            print("Please enter a command.")
+            continue
+
+        command = parts[0]
+
+        if command == "exit" and len(parts) == 1:
+            print("Exiting interactive loop.")
+            break
+
+        try:
+            if command == "interest":
+                if len(parts) != 4:
+                    print("Usage: interest <principal> <rate> <years>")
+                    continue
+
+                principal = float(parts[1])
+                rate = float(parts[2])
+                years = int(parts[3])
+                if principal < 0 or rate < 0 or years < 0:
+                    print("Principal, rate, and years must be non-negative.")
+                    continue
+
+                interest = calculate_compound_interest(principal, rate, years)
+                print(f"Computed Interest: {interest:.2f}")
+
+            elif command == "penalty":
+                if len(parts) != 3:
                     print("Usage: penalty <amount> <rate>")
-            elif cmd == "guard":
-                txs = [{'amount': -100}, {'amount': -200, 'flag': 'STOP'}, {'amount': -500}]
-                final_bal = trajectory_guard(txs, 1000, 500, 'STOP')
-                print(f"Guard halted at balance: {final_bal}")
+                    continue
+
+                amount = float(parts[1])
+                rate = float(parts[2])
+                if amount < 0 or rate < 0:
+                    print("Amount and rate must be non-negative.")
+                    continue
+
+                fee = calculate_penalty_fee(amount, rate)
+                print(f"Penalty Fee: {fee:.2f}")
+
+            elif command == "guard":
+                transactions = [
+                    {"amount": -100},
+                    {"amount": -200, "flag": "STOP"},
+                    {"amount": -500},
+                ]
+                final_balance = trajectory_guard(
+                    transactions, 1000, 500, "STOP"
+                )
+                print(f"Guard halted at balance: {final_balance}")
+
             else:
                 print("Invalid command. Try 'interest', 'penalty', 'guard', or 'exit'.")
-                
-        except BaseException as e:
-            if isinstance(e, KeyboardInterrupt):
-                print("\nUse 'exit' to quit.")
-            else:
-                print(f"Error processing command: {e}")
+
+        except (ValueError, OverflowError) as error:
+            print(f"Invalid numeric input: {error}")
 
 # =====================================================================
 # Module 2: Native Log Parser and Closure Mechanics (Unit 2)
@@ -151,7 +185,7 @@ def parse_raw_log_line(line, delimiter=",", quote_char='"'):
         char = line[i]
         
         if char == quote_char:
-            if in_quotes and i + 1 < length and line[i+1:i+2] == quote_char:
+            if in_quotes and i + 1 < length and line[i+1] == quote_char:
                 current_token += quote_char
                 i += 1
             else:
@@ -222,7 +256,9 @@ def clean_transaction_queue(data_list):
         item_type = type(item)
         
         if item_type == tuple:
-            data_list[i] = list(item)
+            converted_item = list(item)
+            converted_item.sort(reverse=True)
+            data_list[i] = converted_item
             i += 1
         elif item_type == set:
             evens = {x for x in item if type(x) == int and x % 2 == 0}
@@ -425,8 +461,10 @@ class SavingsAccount(Account):
         super().__init__(account_id, balance)
         
     def process_settlement(self, amount):
-        """Applies a settlement while preserving the minimum savings balance."""
-        new_bal = self.get_balance() + amount
+        """Applies a non-negative debit while preserving the minimum savings balance."""
+        if amount < 0:
+            raise OutOfBoundsError("Transaction amount must be non-negative.")
+        new_bal = self.get_balance() - amount
         if new_bal < 1000:
             raise InsufficientBalanceError("Savings balance cannot fall below 1000.")
         self.set_balance(new_bal)
@@ -440,8 +478,10 @@ class CurrentAccount(Account):
         self.__overdraft_limit = overdraft_limit
         
     def process_settlement(self, amount):
-        """Applies a settlement within the configured overdraft limit."""
-        new_bal = self.get_balance() + amount
+        """Applies a non-negative debit within the configured overdraft limit."""
+        if amount < 0:
+            raise OutOfBoundsError("Transaction amount must be non-negative.")
+        new_bal = self.get_balance() - amount
         if new_bal < -self.__overdraft_limit:
             raise InsufficientBalanceError("Overdraft limit exceeded.")
         self.set_balance(new_bal)
@@ -455,7 +495,9 @@ class CreditAccount(Account):
         self.__credit_limit = credit_limit
         
     def process_settlement(self, amount):
-        """Applies a settlement and the required 2.5 percent surcharge."""
+        """Applies a non-negative debit and the required 2.5 percent surcharge."""
+        if amount < 0:
+            raise OutOfBoundsError("Transaction amount must be non-negative.")
         surcharge = amount * 0.025
         total_deduction = amount + surcharge
         new_bal = self.get_balance() - total_deduction
@@ -565,10 +607,10 @@ def run_demonstration():
     except BaseSystemError as error:
         print(f" Invalid balance rejected: {error}")
     
-    execute_batch_settlement([s, c], -600)
+    execute_batch_settlement([s, c], 600)
     execute_batch_settlement([cr], 500)
     print(" Additional limit-rejection checks:")
-    execute_batch_settlement([CurrentAccount("C2", 50, 100)], -200)
+    execute_batch_settlement([CurrentAccount("C2", 50, 100)], 200)
     execute_batch_settlement([CreditAccount("CR2", 0, 500)], 500)
     
     print("\n9. Trajectory Guard (FR-1.3):")
@@ -582,7 +624,7 @@ def run_demonstration():
         {'amount': -1000}
     ]
     flag_balance = trajectory_guard(flag_txs, 1000, 500, 'STOP')
-    print(f" Stop-flag halt balance: {flag_balance}")
+    print(f" Stop-flag halt balance (flagged transaction not applied): {flag_balance}")
 
     print("\n10. Interactive Loop (FR-1.1):")
     run_interactive_loop()
