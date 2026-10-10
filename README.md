@@ -15,7 +15,7 @@ The implementation uses only the permitted standard-library modules `datetime` a
 
 ## Units
 
-1. **State control and trajectory guards:** nested command loop, iterative compound interest, penalty calculation, and early-stop guards.
+1. **State control and trajectory guards:** nested command loop, iterative compound interest, periodic penalty calculation, and early-stop guards.
 2. **Parser and closures:** index-based parsing, quoted delimiters, escaped quotes, closure state with `nonlocal`, and lambda late-binding protection.
 3. **Data processing:** nested-comprehension reverse index and in-place queue cleanup.
 4. **File processing:** `r+` record updates, chunked shifting when record lengths change, corruption logging, and ledger entries.
@@ -25,7 +25,7 @@ The implementation uses only the permitted standard-library modules `datetime` a
 
 - `main.py` — implementation and demonstration code for all five units.
 - `documentation.md` — architecture and class diagrams, scope tracking, and the Units 1–5 checklist.
-- `README.md` — overview and run instructions.
+- `README.md` — project overview and run instructions.
 
 ## Run it in an interactive terminal
 
@@ -39,12 +39,16 @@ The demonstration runs first, then the program asks for a command. Available com
 
 ```text
 interest <principal> <rate> <years>
-penalty <amount> <rate>
+penalty <amount> <rate> [periods]
 guard
 exit
 ```
 
-Example: `interest 10000 5 2` prints `Computed Interest: 1025.00`.
+Examples:
+
+- `interest 10000 5 2` prints `Computed Interest: 1025.00`.
+- `penalty 10000 2` computes a one-period fee of `200.00`.
+- `penalty 5000 2 3` computes `300.00` over three periods.
 
 **VS Code note:** run this from **Terminal → New Terminal**, not from an output-only “Run Code” panel, because the interactive loop needs terminal input. If the input stream is unavailable, the script now detects EOF, prints a hint, and exits rather than looping forever.
 
