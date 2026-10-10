@@ -1,45 +1,51 @@
 # PTMAE — Documentation
 
 ## Student Details
+
 - **Name:** Nirav Vala
 - **Semester:** 3
 - **Division:** D
 - **Enrollment Number:** 25004500210223
 
-## 1. Architecture and Class Diagram
-
-### Architecture flow
+## 1. Architecture Flow
 
 ```text
-+-------------------------+
-| main.py entry point     |
-+------------+------------+
-             |
-             v
-+-------------------------+
-| run_demonstration()     |
-+------------+------------+
-             |
-   +---------+----------+------------------+
-   |                    |                  |
-   v                    v                  v
-+----------------+ +----------------+ +-------------------+
-| Unit 1         | | Unit 2         | | Unit 3            |
-| CLI and guards | | Parser/closures| | Reverse index and|
-| Interest/fees  | | Lambda filters | | in-place queue    |
-+----------------+ +----------------+ +-------------------+
-             |
-             +----------------------+-------------------+
-                                    |                   |
-                                    v                   v
-                     +-----------------------+ +-----------------------+
-                     | Unit 4                | | Unit 5                |
-                     | accounts.db (r+)      | | Account hierarchy     |
-                     | corrupted.log/ledger  | | batch settlement      |
-                     +-----------------------+ +-----------------------+
+                    +-------------------------+
+                    |     run_demonstration   |
+                    +------------+------------+
+                                 |
+       +-------------------------+--------------------------+
+       |                         |                          |
+       v                         v                          v
++--------------+       +----------------+         +------------------+
+| Unit 1       |       | Unit 2         |         | Unit 3            |
+| CLI, interest|       | Manual parser  |         | Reverse index and |
+| penalty, guard|      | closures, lambdas|       | in-place queue    |
++--------------+       +----------------+         +------------------+
+       |                         |                          |
+       +-------------------------+--------------------------+
+                                 |
+                                 v
+                     +-----------------------+
+                     | Unit 4 file processing|
+                     | accounts.db, logs     |
+                     +-----------+-----------+
+                                 |
+                                 v
+                     +-----------------------+
+                     | Unit 5 account classes|
+                     | polymorphic settlement|
+                     +-----------------------+
+                                 |
+                                 v
+                     +-----------------------+
+                     | Interactive CLI loop |
+                     | interest/penalty/guard|
+                     | exit or EOF handling  |
+                     +-----------------------+
 ```
 
-### Account class hierarchy
+## 2. Class Diagram
 
 ```text
                  +---------------------------+
@@ -54,38 +60,54 @@
      +----------------+ +----------------+ +----------------+
      | SavingsAccount | | CurrentAccount | | CreditAccount  |
      +----------------+ +----------------+ +----------------+
-     | Minimum 1000   | | Private overdraft| | 2.5% surcharge |
+     | Minimum 1000   | | Private         | | 2.5% surcharge |
+     |                | | overdraft limit | | Credit limit   |
      +----------------+ +----------------+ +----------------+
 ```
 
-The program is organized into five functional areas: state control and trajectory guards, manual log parsing and closures, data inversion and queue processing, transactional file updates and error logging, and account classes with polymorphic settlement.
+The program is contained in one Python source file. The demonstration exercises each unit, then starts the interactive command loop.
 
-## 2. State and Scope Tracking
+## 3. State and Scope Tracking
 
 | Concept | Example | Purpose |
 |---|---|---|
-| Module scope | Functions and exception classes | Makes the required program components available to the demonstration. |
-| Global state | None used to pass closure state or fix late binding | Closure state stays local to each returned filter; each lambda binds `k=k`. |
-| `nonlocal` | `audited_count` inside `create_audit_filter` | Maintains a counter in the returned closure. |
-| Lambda late binding | `lambda record, k=k` | Captures the current loop value as a default argument. |
+| Module scope | Functions and custom exception classes | Makes required components available to the demonstration. |
+| Global state | No global variables used to pass closure state or fix late binding | The closure and lambda values are scoped locally. |
+| `nonlocal` | `audited_count` inside `create_audit_filter` | Maintains a counter in each returned closure. |
+| Lambda late binding | `lambda record, k=k` | Captures the current loop position as a default argument. |
 | Private/mangled attribute | `__balance` / `_Account__balance` | Demonstrates name mangling for the account balance. |
-| Protected attribute | `_account_id` | Keeps the account ID available to subclasses and the batch processor. |
+| Protected attribute | `_account_id` | Makes the account ID available to subclasses and the batch processor. |
 | Class attribute | `total_accounts` | Counts account instances created by the base class. |
 
-## 3. Units 1–5 Compliance Checklist
+## 4. Units 1–5 Compliance Checklist
 
-- [x] **Unit 1 — State control:** Nested `while` loops support the command interface. Compound interest and penalty fees use arithmetic calculations. `trajectory_guard` uses a short-circuit `or` condition and demonstrations cover both threshold and stop-flag halts.
-- [x] **Unit 2 — Parsing and closures:** `parse_raw_log_line` scans characters by index, uses a one-character lookahead slice, and handles quoted delimiters, escaped quotes, an empty middle field, and trailing delimiters. The closure uses `nonlocal`; lambdas bind `k=k`.
-- [x] **Unit 3 — Data processing:** `invert_data` uses a nested-comprehension pipeline. `clean_transaction_queue` modifies the supplied list in place, converts tuples, removes even integers from sets, sorts embedded lists descending, and removes duplicate primitive values by scanning the same list.
-- [x] **Unit 4 — File handling:** The account database is modified in `r+` mode with `tell`, `seek`, chunked shifting, and `truncate`. If the database is absent, a starter file is created once with valid records and one intentionally malformed record so the rejection logger is demonstrated; record updates still use `r+`. The first valid record is chosen to exercise a lengthening update. Rejected records are logged with their actual input line numbers, accepted updates go to the ledger, and counts print in `finally`.
-- [x] **Unit 5 — OOP:** Custom exceptions, a private balance, protected account ID, class-level account count, validation methods, `super()` constructors, Savings/Current/Credit rules, and isolated polymorphic batch settlement are implemented. The demo shows successful settlements and overdraft/credit-limit rejection cases.
+- [x] **Unit 1 — State control and trajectory guards:** The command interface uses nested `while` loops and manually scans command characters rather than using `str.split()`. Compound interest is calculated iteratively using arithmetic operations. The penalty uses an arithmetic percentage calculation. The trajectory guard uses short-circuit `or`, demonstrates threshold-based stopping, and stops before applying a transaction marked with the stop flag.
+- [x] **Unit 2 — Parsing and closures:** `parse_raw_log_line` scans by index, uses slicing to check for escaped quote pairs, and handles quoted delimiters, escaped quotes, empty fields, and trailing delimiters. The closure uses `nonlocal`, and each lambda binds `k=k`.
+- [x] **Unit 3 — Data processing:** `invert_data` builds the reverse index through a nested-comprehension pipeline, with sorted unique account/branch tuples. `clean_transaction_queue` mutates the original list object, converts tuples to lists, sorts lists descending, removes even integer values from set elements by set difference, and removes duplicate primitive values by scanning and deleting by index.
+- [x] **Unit 4 — File handling:** `process_file_updates` uses `r+`, `tell()`, `seek()`, chunked shifting, and `truncate()` when record lengths change. If the database is absent, a starter file is created on first run; subsequent record updates use `r+`. Rejected records are appended to `corrupted.log` with their input line numbers, successful updates are recorded in `ledger.txt`, and processed/rejected counts print in `finally`.
+- [x] **Unit 5 — OOP and settlement:** `Account` has private `__balance`, protected `_account_id`, class attribute `total_accounts`, and validated balance methods. Savings, Current, and Credit accounts call `super().__init__()`. Savings enforces a 1000 minimum balance, Current uses a private overdraft limit, Credit applies the 2.5% surcharge, and batch settlement handles each account failure separately. Settlement amounts are non-negative debits.
 
-## 4. File and Runtime Notes
+## 5. Files and Runtime
 
-The submission folder contains only `main.py` and this documentation file. On the first run, `main.py` creates `accounts.db` if it is missing and also produces `corrupted.log` and `ledger.txt` while demonstrating file processing. These are runtime files, not files required in the submitted folder. Run the script with Python 3:
+The submitted folder contains only `main.py` and `documentation.md`. During execution, the program may create `accounts.db`, `corrupted.log`, and `ledger.txt`; these are runtime files and are not required in the submission ZIP.
+
+Run from a terminal in the folder containing `main.py`:
 
 ```text
 python main.py
 ```
 
-The interactive command loop supports `interest <principal> <rate> <time>`, `penalty <amount> <rate>`, `guard`, and `exit`. The demonstration includes two hand-checkable compound-interest cases, a penalty calculation, parser examples for quoted delimiters, escaped quotes, and a trailing delimiter, all three custom exception subclasses, all three lambda positions, and balance-setter validation.
+The demonstrations run first. The interactive command loop then accepts:
+
+```text
+interest <principal> <rate> <years>
+penalty <amount> <rate>
+guard
+exit
+```
+
+For example, `interest 10000 5 2` prints `Computed Interest: 1025.00`.
+
+If the process is launched in an output-only runner that does not provide standard input, it now detects `EOFError`, prints a terminal-run hint, and exits instead of looping indefinitely. To enter commands in VS Code, use **Terminal → New Terminal** and run `python main.py` there (rather than an output-only “Run Code” panel).
+
+The demonstration also covers two compound-interest examples, penalty calculation, parser edge cases, all custom exception subclasses, lambda positions, in-place queue identity, both trajectory-stop conditions, name mangling, balance validation, file processing, and batch settlement rejections.
