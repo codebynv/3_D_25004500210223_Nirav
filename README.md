@@ -1,8 +1,6 @@
 # PTMAE — Pure Python Transactional Micro-Banking & Audit Engine
 
-PTMAE is a Python 3 command-line assignment covering five units of the Python Programming course. It combines account-related calculations, manual log parsing, data transformations, in-place text-file updates, and object-oriented settlement rules.
-
-The implementation uses only the permitted standard-library modules `datetime` and `random`; no third-party packages are required.
+PTMAE is a Python 3 command-line assignment covering the five required units of the Python Programming SRS. It demonstrates loop-based calculations, manual parsing, closures, reverse indexing, in-place queue processing, record updates with `r+`, error logging, and polymorphic account settlement.
 
 ## Student
 
@@ -13,21 +11,21 @@ The implementation uses only the permitted standard-library modules `datetime` a
 | Division | D |
 | Enrollment number | 25004500210223 |
 
-## Units
+## Units covered
 
-1. **State control and trajectory guards:** nested command loop, iterative compound interest, periodic penalty calculation, and early-stop guards.
-2. **Parser and closures:** index-based parsing, quoted delimiters, escaped quotes, closure state with `nonlocal`, and lambda late-binding protection.
-3. **Data processing:** nested-comprehension reverse index and in-place queue cleanup.
-4. **File processing:** `r+` record updates, chunked shifting when record lengths change, corruption logging, and ledger entries.
-5. **Object-oriented settlement:** `Account`, Savings/Current/Credit subclasses, custom exceptions, balance validation, and isolated batch settlement.
+1. **State control and trajectory guards** — nested `while` loops, compound interest, penalty fees, and early termination on a threshold or `STOP` flag.
+2. **Parser and closures** — index-based parsing of quoted fields and escaped quotes, `nonlocal` state, and lambda filters bound with `k=k`.
+3. **Data inversion and queue processing** — a sorted reverse index and in-place list/tuple/set/primitive cleanup.
+4. **File processing and exceptions** — `r+` account updates, chunked shifting when record length changes, `corrupted.log`, `ledger.txt`, and custom exceptions.
+5. **Object-oriented settlement** — `Account`, `SavingsAccount`, `CurrentAccount`, `CreditAccount`, balance validation, name mangling, and isolated batch settlement.
 
-## Files
+## Repository files
 
-- `main.py` — implementation and demonstration code for all five units.
-- `documentation.md` — architecture and class diagrams, scope tracking, and the Units 1–5 checklist.
-- `README.md` — project overview and run instructions.
+- `main.py` — implementation, interactive menus, built-in demonstration, and live self-audit.
+- `documentation.md` — architecture and class diagrams, state/scope table, and the Units 1–5 checklist.
+- `README.md` — overview and run instructions.
 
-## Run it in an interactive terminal
+## Run
 
 Open a terminal in the repository folder and run:
 
@@ -35,25 +33,23 @@ Open a terminal in the repository folder and run:
 python main.py
 ```
 
-The demonstration runs first, then the program asks for a command. Available commands:
+The program opens a grouped menu. Enter `0` to exit. Useful options are `1` for interest and penalty calculations, `8` for file processing, `10` for the command shell, `11` for the full demonstration, and `13` for the self-audit.
+
+In the command shell (option `10`), enter one command per line:
 
 ```text
-interest <principal> <rate> <years>
-penalty <amount> <rate> [periods]
-guard
+interest 10000 5 2
+penalty 50 10
+guard 1000 500 -300 -300 -300 50
 exit
 ```
 
-Examples:
+Expected results include compound interest `1025.0`, a ten-day penalty of `650`, and a guarded final balance of `400.0`. The penalty command uses `penalty <base_fee> <days_late>`.
 
-- `interest 10000 5 2` prints `Computed Interest: 1025.00`.
-- `penalty 10000 2` computes a one-period fee of `200.00`.
-- `penalty 5000 2 3` computes `300.00` over three periods.
-
-**VS Code note:** run this from **Terminal → New Terminal**, not from an output-only “Run Code” panel, because the interactive loop needs terminal input. If the input stream is unavailable, the script now detects EOF, prints a hint, and exits rather than looping forever.
+Run the program in an interactive terminal, such as **VS Code → Terminal → New Terminal**, so it can receive keyboard input. If no input stream is available, the program runs the demonstration and self-audit, then exits rather than looping on `EOFError`.
 
 ## Runtime files
 
-On first run, the program creates `accounts.db` if missing. File processing also writes `corrupted.log` for rejected records and `ledger.txt` for successful updates. These files are generated at runtime and are not part of the required submission folder.
+The file-processing demo creates or resets `accounts.db` and writes `corrupted.log` and `ledger.txt`. The self-audit uses separate `audit_*.tmp` files. These are runtime artifacts, not required source files for the submission ZIP.
 
-See [`documentation.md`](documentation.md) for the architecture diagrams, state/scope table, and detailed compliance checklist.
+See [`documentation.md`](documentation.md) for the detailed design and compliance checklist.
