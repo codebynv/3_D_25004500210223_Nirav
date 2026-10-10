@@ -46,11 +46,18 @@ def calculate_compound_interest(principal, rate, time):
         year += 1
     return amount - principal
 
-def calculate_penalty_fee(amount, rate):
+def calculate_penalty_fee(amount, rate, periods=1):
     """
-    Computes a penalty fee using arithmetic operators only.
+    Adds a percentage penalty once per period using arithmetic operations.
+    Defaults to one period so existing two-argument calls remain valid.
     """
-    return amount * rate / 100
+    fee_per_period = amount * rate / 100
+    fee = 0
+    period = 0
+    while period < periods:
+        fee = fee + fee_per_period
+        period += 1
+    return fee
 
 def trajectory_guard(transactions, initial_balance, threshold, stop_flag):
     """
@@ -136,17 +143,21 @@ def run_interactive_loop():
                 print(f"Computed Interest: {interest:.2f}")
 
             elif command == "penalty":
-                if len(parts) != 3:
-                    print("Usage: penalty <amount> <rate>")
+                if len(parts) not in (3, 4):
+                    print("Usage: penalty <amount> <rate> [periods]")
                     continue
 
                 amount = float(parts[1])
                 rate = float(parts[2])
-                if amount < 0 or rate < 0:
-                    print("Amount and rate must be non-negative.")
+                periods = 1
+                if len(parts) == 4:
+                    periods = int(parts[3])
+
+                if amount < 0 or rate < 0 or periods < 0:
+                    print("Amount, rate, and periods must be non-negative.")
                     continue
 
-                fee = calculate_penalty_fee(amount, rate)
+                fee = calculate_penalty_fee(amount, rate, periods)
                 print(f"Penalty Fee: {fee:.2f}")
 
             elif command == "guard":
@@ -537,9 +548,11 @@ def run_demonstration():
     interest = calculate_compound_interest(10000, 5, 2)
     second_interest = calculate_compound_interest(2000, 10, 1)
     penalty = calculate_penalty_fee(10000, 2)
+    multi_period_penalty = calculate_penalty_fee(5000, 2, 3)
     print(f" Compound Interest (10000 at 5% for 2 years): {interest:.2f}")
     print(f" Compound Interest (2000 at 10% for 1 year): {second_interest:.2f}")
-    print(f" Penalty Fee (10000 at 2%): {penalty:.2f}")
+    print(f" Penalty Fee (10000 at 2% for 1 period): {penalty:.2f}")
+    print(f" Penalty Fee (5000 at 2% for 3 periods): {multi_period_penalty:.2f}")
 
     print("\n2. Exceptions check:")
     exception_types = (CorruptedRecordError, OutOfBoundsError, InsufficientBalanceError)
